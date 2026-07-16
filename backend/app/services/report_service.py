@@ -24,8 +24,7 @@ from app.schemas.report import (
 )
 from app.schemas.responses import PaginationMeta
 from app.services.parser_service import ParserService
-from app.services.storage_service import StorageService
-from app.utils.files import build_storage_path, sanitize_filename
+from app.utils.files import sanitize_filename
 
 LOGGER = get_logger(__name__)
 
@@ -35,11 +34,9 @@ class ReportService:
         self,
         session: AsyncSession,
         parser_service: ParserService | None = None,
-        storage_service: StorageService | None = None,
     ) -> None:
         self.session = session
         self.parser_service = parser_service or ParserService()
-        self.storage_service = storage_service or StorageService()
         self.settings = get_settings()
 
     async def upload_report(
@@ -51,14 +48,12 @@ class ReportService:
 
         report_id = uuid4()
         original_filename = sanitize_filename(upload_file.filename or "report.pdf")
-        storage_path = build_storage_path(report_id, original_filename)
+        storage_path = f"db-only/reports/{report_id}/{original_filename}"
         temp_path: Path | None = None
 
         try:
             temp_path = await self._save_upload_to_tempfile(upload_file, original_filename)
             parsed_json = await self.parser_service.parse_pdf(temp_path)
-            await self.storage_service.upload_pdf(temp_path, storage_path)
-
             report = Report(
                 id=report_id,
                 user_id=user_id,
@@ -71,7 +66,7 @@ class ReportService:
             await self.session.refresh(report)
 
             LOGGER.info(
-                "Stored report metadata in PostgreSQL",
+                "Stored parsed report JSON in PostgreSQL",
                 extra={"report_id": str(report.id), "storage_path": report.storage_path},
             )
             return ReportUploadResponse(
@@ -80,18 +75,6 @@ class ReportService:
             )
         except Exception as exc:
             await self.session.rollback()
-            if storage_path:
-                try:
-                    await self.storage_service.delete_pdf(storage_path, ignore_missing=True)
-                except Exception as cleanup_exc:
-                    LOGGER.error(
-                        "Failed to clean up uploaded storage object after an error",
-                        extra={
-                            "storage_path": storage_path,
-                            "cleanup_error": str(cleanup_exc),
-                        },
-                    )
-
             if hasattr(exc, "status_code"):
                 raise
             if isinstance(exc, SQLAlchemyError):
@@ -134,8 +117,6 @@ class ReportService:
 
     async def delete_report(self, report_id: UUID) -> ReportDeleteResponse:
         report = await self._fetch_report_or_404(report_id)
-        await self.storage_service.delete_pdf(report.storage_path, ignore_missing=True)
-
         try:
             await self.session.delete(report)
             await self.session.commit()
