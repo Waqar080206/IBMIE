@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.reports import router as reports_router
+from app.api.prescriptions import router as prescriptions_router  # <-- Import the new router
 from app.core.config import get_settings
 from app.core.exceptions import IBMIEError
 from app.core.logging import configure_logging, get_logger
@@ -56,4 +57,6 @@ async def health_check() -> dict[str, str]:
     return {"status": "ok"}
 
 
+# Register both clean, separate routers
 app.include_router(reports_router)
+app.include_router(prescriptions_router)

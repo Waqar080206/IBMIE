@@ -8,16 +8,23 @@ from pathlib import Path
 from typing import Any, Literal
 
 import httpx
+import pytesseract
+from pdf2image import convert_from_bytes
 from pydantic import BaseModel, Field
 from pypdf import PdfReader
 
 from app.core.exceptions import ParserServiceError
 from app.core.logging import get_logger
+# FIXED: Updated absolute import path structure to target app directory natively
+from app.schemas.prescription import PrescriptionExtractionSchema
 
 LOGGER = get_logger(__name__)
 GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 GROQ_CHAT_COMPLETIONS_URL = "https://api.groq.com/openai/v1/chat/completions"
 SYSTEM_PROMPT = "You extract structured medical lab data with high factual precision and return valid JSON only."
+
+# Define supported internal document classification categories
+DocumentType = Literal["lab_report", "prescription"]
 
 
 class MedicalMetric(BaseModel):
@@ -50,20 +57,29 @@ class LabReportExtractionSchema(BaseModel):
 
 
 class ParserService:
-    async def parse_pdf(self, pdf_path: Path) -> dict[str, Any]:
-        return await asyncio.to_thread(self._parse_sync, pdf_path)
+    # FIXED: Type hint return value updated to accept the parsed object output safely
+    async def parse_pdf(self, pdf_path: Path, doc_type: DocumentType = "lab_report") -> LabReportExtractionSchema | PrescriptionExtractionSchema:
+        return await asyncio.to_thread(self._parse_sync, pdf_path, doc_type)
 
-    def _parse_sync(self, pdf_path: Path) -> dict[str, Any]:
+    def _parse_sync(self, pdf_path: Path, doc_type: DocumentType) -> LabReportExtractionSchema | PrescriptionExtractionSchema:
         try:
-            parsed = parse_medical_pdf(pdf_path)
+            parsed = parse_medical_pdf(pdf_path, doc_type)
         except Exception as exc:
             raise ParserServiceError(str(exc)) from exc
 
-        return parsed.model_dump()
+        # FIXED: Return the Pydantic instance directly to match implementation downstream in your services
+        return parsed
 
 
 def extract_pdf_text(pdf_path: str | Path) -> str:
-    reader = PdfReader(str(pdf_path))
+    """
+    Hybrid text extraction: Tries clean native extraction first, 
+    falls back to optimized Tesseract OCR if the file is scanned.
+    """
+    pdf_file = Path(pdf_path)
+    
+    # 1. Native Extraction Attempt
+    reader = PdfReader(str(pdf_file))
     pages: list[str] = []
 
     for page in reader.pages:
@@ -71,10 +87,46 @@ def extract_pdf_text(pdf_path: str | Path) -> str:
         if text.strip():
             pages.append(text.strip())
 
-    return "\n\n".join(pages).strip()
+    native_text = "\n\n".join(pages).strip()
+    
+    # If we extracted meaningful content, return it directly
+    if len(native_text) > 50:
+        return native_text
+
+    # 2. Fallback: Run Tesseract OCR on scanned content
+    LOGGER.info(f"Native extraction returned insufficient text ({len(native_text)} chars). Falling back to OCR processing.")
+    ocr_pages: list[str] = []
+    try:
+        # Read file bytes for pdf2image conversion
+        file_bytes = pdf_file.read_bytes()
+        # Cap at 150 DPI to protect RAM memory footprint and double execution speed
+        images = convert_from_bytes(file_bytes, dpi=150)
+        
+        for i, image in enumerate(images):
+            page_text = pytesseract.image_to_string(image)
+            if page_text.strip():
+                ocr_pages.append(f"--- Page {i+1} ---\n{page_text.strip()}")
+                
+    except Exception as e:
+        LOGGER.error(f"OCR Execution Error while processing {pdf_file.name}: {str(e)}")
+        raise ValueError("Failed to process scanned document text layers.") from e
+
+    return "\n\n".join(ocr_pages).strip()
 
 
-def build_prompt(report_text: str) -> str:
+def build_prompt_by_type(report_text: str, doc_type: DocumentType) -> str:
+    if doc_type == "prescription":
+        return (
+            "You are an expert clinical data parsing engine specialized in prescriptions.\n"
+            "Extract only facts that are explicitly present in the prescription text.\n\n"
+            "Rules:\n"
+            "- Do not guess, infer, or normalize drug names beyond what is written.\n"
+            "- Extract exact dosages, frequencies, and administration instructions.\n"
+            "- Identify any follow-up intervals mentioned.\n"
+            "- Return valid JSON matching the requested prescription schema exactly.\n\n"
+            f"Prescription text:\n{report_text}"
+        )
+    
     return (
         "You are an expert clinical data parsing engine.\n"
         "Extract only facts that are explicitly present in the document text.\n\n"
@@ -88,12 +140,12 @@ def build_prompt(report_text: str) -> str:
     )
 
 
-def call_groq(report_text: str, api_key: str) -> str:
+def call_groq(report_text: str, api_key: str, doc_type: DocumentType) -> str:
     payload = {
         "model": GROQ_MODEL,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": build_prompt(report_text)},
+            {"role": "user", "content": build_prompt_by_type(report_text, doc_type)},
         ],
         "temperature": 0,
         "response_format": {"type": "json_object"},
@@ -170,7 +222,7 @@ def normalize_groq_output(content: str) -> dict[str, Any]:
     }
 
 
-def parse_medical_pdf(pdf_path: str | Path) -> LabReportExtractionSchema:
+def parse_medical_pdf(pdf_path: str | Path, doc_type: DocumentType) -> LabReportExtractionSchema | PrescriptionExtractionSchema:
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         raise RuntimeError("GROQ_API_KEY is not set in the environment")
@@ -183,5 +235,9 @@ def parse_medical_pdf(pdf_path: str | Path) -> LabReportExtractionSchema:
     if not report_text:
         raise ValueError("No readable text was extracted from the PDF")
 
-    content = call_groq(report_text, api_key)
+    content = call_groq(report_text, api_key, doc_type)
+    
+    if doc_type == "prescription":
+        return PrescriptionExtractionSchema.model_validate_json(content)
+    
     return LabReportExtractionSchema.model_validate(normalize_groq_output(content))

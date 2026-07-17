@@ -53,20 +53,30 @@ class ReportService:
 
         try:
             temp_path = await self._save_upload_to_tempfile(upload_file, original_filename)
-            parsed_json = await self.parser_service.parse_pdf(temp_path)
+            parsed_data = await self.parser_service.parse_pdf(temp_path)
+            
+            # Convert structured schema objects safely into python standard dictionaries
+            raw_json_data = parsed_data.model_dump() if hasattr(parsed_data, "model_dump") else parsed_data
+
+            # FIXED: Pura extraction response single database report_json column field mein binded hai
             report = Report(
                 id=report_id,
                 user_id=user_id,
                 original_filename=original_filename,
                 storage_path=storage_path,
-                report_json=parsed_json,
+                patient_demographics_found=bool(
+                    raw_json_data.get("patient_demographics_found", False)
+                    if isinstance(raw_json_data, dict) else getattr(parsed_data, "patient_demographics_found", False)
+                ),
+                report_json=raw_json_data
             )
+
             self.session.add(report)
             await self.session.commit()
             await self.session.refresh(report)
 
             LOGGER.info(
-                "Stored parsed report JSON in PostgreSQL",
+                "Stored raw un-normalized report JSON block in PostgreSQL successfully",
                 extra={"report_id": str(report.id), "storage_path": report.storage_path},
             )
             return ReportUploadResponse(

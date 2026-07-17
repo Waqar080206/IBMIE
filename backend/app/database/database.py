@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.pool import NullPool  # <--- Added to disable SQLAlchemy's pool
 
 from app.core.config import get_settings
 from app.database.models import Base
@@ -39,11 +40,20 @@ def _build_ssl_context() -> ssl.SSLContext:
     return ssl_context
 
 
+# Create the updated engine configuration
 engine: AsyncEngine = create_async_engine(
     DATABASE_URL,
-    pool_pre_ping=True,
-    connect_args={"ssl": _build_ssl_context()},
+    # 1. NullPool delegates all connection pooling to PgBouncer.
+    # We remove pool_pre_ping=True here because NullPool doesn't use ping tests.
+    poolclass=NullPool, 
+    connect_args={
+        "ssl": _build_ssl_context(),
+        # 2. We turn off statement caches entirely inside asyncpg
+        "statement_cache_size": 0,
+        "prepared_statement_cache_size": 0,
+    },
 )
+
 async_session_factory = async_sessionmaker(
     bind=engine,
     class_=AsyncSession,
