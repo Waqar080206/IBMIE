@@ -1,7 +1,8 @@
 import Link from "next/link";
 import {
   FileText, Sparkles, AlertTriangle, ShieldCheck, ChevronRight,
-  FlaskConical, Pill, UploadCloud, AlertOctagon, ListChecks, Droplets, Flame,
+  FlaskConical, Pill, UploadCloud, AlertOctagon, ListChecks, Flame,
+  LogIn, UserRoundCog, MessageCircleHeart,
 } from "lucide-react";
 import { T } from "@/lib/tokens";
 import { TopBar, Card } from "@/components/UI";
@@ -27,6 +28,40 @@ export default async function DashboardPage() {
   return (
     <div>
       <TopBar title="Good to see you" subtitle="Here's where things stand across your recent reports" />
+
+      <Card className="p-5 mb-6">
+        <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+          <div>
+            <h2 className="text-[15px] font-semibold" style={{ color: T.ink, fontFamily: "var(--font-display)" }}>
+              Start with the real IBMIE flow
+            </h2>
+            <p className="text-[12.5px] mt-1" style={{ color: T.muted }}>
+              Login, add health context, upload reports, then ask IBMIE for simple explanations and routine suggestions.
+            </p>
+          </div>
+          <Link href="/chat" className="rounded-lg px-3.5 py-2.5 text-[12.5px] font-semibold flex items-center gap-2" style={{ background: T.primary, color: "#fff" }}>
+            <MessageCircleHeart size={15} /> Ask AI
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          {[
+            { href: "/login", label: "User login", icon: LogIn },
+            { href: "/profile", label: "Health details", icon: UserRoundCog },
+            { href: "/upload", label: "Reports upload", icon: UploadCloud },
+            { href: "/chat", label: "AI suggestions", icon: MessageCircleHeart },
+          ].map((step, index) => (
+            <Link key={step.href} href={step.href} className="rounded-lg p-3 flex items-center gap-3" style={{ background: T.canvasAlt }}>
+              <div className="h-8 w-8 rounded-md flex items-center justify-center" style={{ background: T.card }}>
+                <step.icon size={15} color={T.primary} />
+              </div>
+              <div>
+                <div className="text-[11px] font-semibold" style={{ color: T.muted }}>STEP {index + 1}</div>
+                <div className="text-[13px] font-semibold" style={{ color: T.ink }}>{step.label}</div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </Card>
 
       {urgentDoc?.urgent && (
         <Link
@@ -133,6 +168,10 @@ export default async function DashboardPage() {
             <Link href="/reminders" className="flex items-center gap-2.5 rounded-lg px-3.5 py-3" style={{ background: T.canvasAlt }}>
               <ShieldCheck size={16} color={T.inkSoft} />
               <span className="text-[13px] font-medium" style={{ color: T.inkSoft }}>Manage reminders</span>
+            </Link>
+            <Link href="/chat" className="flex items-center gap-2.5 rounded-lg px-3.5 py-3" style={{ background: T.canvasAlt }}>
+              <MessageCircleHeart size={16} color={T.inkSoft} />
+              <span className="text-[13px] font-medium" style={{ color: T.inkSoft }}>Ask IBMIE</span>
             </Link>
           </div>
         </Card>

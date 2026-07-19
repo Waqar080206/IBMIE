@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
+  LogIn,
+  UserRoundCog,
   UploadCloud,
   FileStack,
   BellRing,
@@ -14,10 +16,19 @@ import {
   Target,
   Flame,
   TrendingUp,
+  MessageCircleHeart,
+  type LucideIcon,
 } from "lucide-react";
 import { T } from "@/lib/tokens";
 
-const NAV_TOP = [{ href: "/", label: "Dashboard", icon: LayoutDashboard }];
+type NavItem = { href: string; label: string; icon: LucideIcon };
+
+const NAV_TOP: NavItem[] = [
+  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/login", label: "Login", icon: LogIn },
+  { href: "/profile", label: "Health details", icon: UserRoundCog },
+  { href: "/chat", label: "Ask IBMIE", icon: MessageCircleHeart },
+];
 
 const NAV_LIFESTYLE = [
   { href: "/track", label: "Today's log", icon: ListChecks },
@@ -33,7 +44,7 @@ const NAV_DOCS = [
   { href: "/summary", label: "Weekly summary", icon: CalendarRange },
 ];
 
-function NavLink({ item, pathname }: { item: { href: string; label: string; icon: any }; pathname: string }) {
+function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
   const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
   return (
     <Link
