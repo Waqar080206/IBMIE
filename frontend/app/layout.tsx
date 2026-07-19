@@ -1,61 +1,38 @@
 import type { Metadata } from "next";
-import HomeLoader  from "@/components/loader/HomeLoader";
-import {
-  Inter,
-  IBM_Plex_Mono,
-} from "next/font/google";
-
-import Sidebar from "@/components/Sidebar";
-import { T } from "@/lib/tokens";
-
 import "./globals.css";
 
-const display = Inter({
-  subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
-  variable: "--font-display",
-});
-
-const body = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-body",
-});
-
-const mono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-mono",
-});
-
 export const metadata: Metadata = {
-  title: "Vitalis - AI Health Companion",
+  title: "Vitalis",
   description:
-    "Reads your reports, explains them simply, and keeps you on track.",
+    "AI-powered health records companion.",
 };
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
-    <html
-      lang="en"
-      className={`${display.variable} ${body.variable} ${mono.variable}`}
-    >
-      <body
-        className="h-screen overflow-hidden"
-        style={{ background: T.canvas }}
-      >
-        <HomeLoader />
-        <div className="flex h-screen">
-          <Sidebar />
+    <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
 
-          <main className="flex-1 overflow-y-auto p-8" style={{ background: T.canvas }}>
-            {children}
-          </main>
-        </div>
+      <body
+        style={{
+          fontFamily: "Inter, sans-serif",
+        }}
+      >
+        {children}
       </body>
     </html>
   );
