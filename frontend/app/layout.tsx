@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import HomeLoader  from "@/components/loader/HomeLoader";
 import {
   Inter,
   IBM_Plex_Mono,
@@ -47,6 +48,7 @@ export default function RootLayout({
         className="h-screen overflow-hidden"
         style={{ background: T.canvas }}
       >
+        <HomeLoader />
         <div className="flex h-screen">
           <Sidebar />
 
