@@ -12,3 +12,4 @@
  GET /login 200 in 170ms (next.js: 90ms, application-code: 80ms)
  GET / 200 in 1977ms (next.js: 6ms, application-code: 1971ms)
  GET /chat 200 in 85ms (next.js: 28ms, application-code: 57ms)
+ GET / 200 in 2.7s (next.js: 113ms, application-code: 2.5s)
