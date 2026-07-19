@@ -136,7 +136,7 @@ export default function HomeLoader() {
         style={{
           transform: "translate(-50%,-50%)",
           background:
-            "radial-gradient(circle,#2dd4bf,#059669)",
+            "radial-gradient(circle,  #065F46,#059669)",
           filter: "blur(18px)",
         }}
       />
@@ -176,7 +176,7 @@ export default function HomeLoader() {
                   cy="50"
                   r="44"
                   fill="none"
-                  stroke="#05b675"
+                  stroke="#00935d"
                   strokeWidth="2.8"
                   strokeLinecap="round"
                   strokeDasharray="175 120"
@@ -217,7 +217,7 @@ export default function HomeLoader() {
                 style={{
                   width: `${progress}%`,
                   background:
-                    "linear-gradient(90deg,#2DD4BF,#34D399,#A7F3D0)",
+                    "linear-gradient( 90deg,  #064E3B 0%,  #0F766E 45%,  #059669 100%)",
                 }}
               />
             </div>
