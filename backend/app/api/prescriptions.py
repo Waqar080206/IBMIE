@@ -1,9 +1,9 @@
 from uuid import UUID
-from fastapi import APIRouter, Depends, UploadFile, Query
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.database import get_db_session
-from backend.app.schemas.prescription import (
+from app.schemas.prescription import (
     PrescriptionDeleteResponse,
     PrescriptionDetailResponse,
     PrescriptionListResponse,
@@ -11,13 +11,17 @@ from backend.app.schemas.prescription import (
 )
 from app.services.prescription_service import PrescriptionService
 
-router = APIRouter(prefix="/prescriptions", tags=["Prescriptions"])
+router = APIRouter(prefix="/api/v1/prescriptions", tags=["prescriptions"])
 
 
-@router.post("", response_model=PrescriptionUploadResponse)
+@router.post(
+    "/upload",
+    response_model=PrescriptionUploadResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def upload_prescription(
-    file: UploadFile,
-    user_id: UUID | None = None,
+    file: UploadFile = File(...),
+    user_id: UUID | None = Form(default=None),
     session: AsyncSession = Depends(get_db_session),
 ):
     service = PrescriptionService(session)

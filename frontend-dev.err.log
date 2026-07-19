@@ -1,0 +1,18 @@
+⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of W:\IBMIE\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * W:\IBMIE\frontend\package-lock.json
+
+Error: Route "/reports/[id]" used `params.id`. `params` is a Promise and must be unwrapped with `await` or `React.use()` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at <unknown> (app\reports\[id]\page.tsx:6:48)
+    at Array.find (<anonymous>)
+    at ReportPage (app\reports\[id]\page.tsx:6:20)
+  4 |
+  5 | export default function ReportPage({ params }: { params: { id: string } }) {
+> 6 |   const doc = DOCS.find((d) => d.id === params.id);
+    |                                                ^
+  7 |   if (!doc) notFound();
+  8 |   return <ReportDetail doc={doc} />;
+  9 | }

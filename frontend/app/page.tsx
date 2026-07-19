@@ -6,17 +6,19 @@ import {
 import { T } from "@/lib/tokens";
 import { TopBar, Card } from "@/components/UI";
 import { ProgressRing } from "@/components/Charts";
-import { DOCS, REMINDERS } from "@/lib/mock-data";
+import { REMINDERS } from "@/lib/mock-data";
+import { getMedicalDocuments } from "@/lib/api";
 import { TODAY_MEALS, HABITS, CALORIE_TARGET, WATER_TARGET } from "@/lib/lifestyle-data";
 
-export default function DashboardPage() {
-  const allResults = DOCS.flatMap((d) => d.results || []);
+export default async function DashboardPage() {
+  const docs = await getMedicalDocuments();
+  const allResults = docs.flatMap((d) => d.results || []);
   const abnormal = allResults.filter((r) => r.status !== "NORMAL").length;
-  const urgentDoc = DOCS.find((d) => d.urgent);
+  const urgentDoc = docs.find((d) => d.urgent);
   const activeReminders = REMINDERS.filter((r) => r.active).length;
 
   const stats = [
-    { label: "Documents processed", value: DOCS.length, icon: FileText },
+    { label: "Documents processed", value: docs.length, icon: FileText },
     { label: "Values extracted", value: allResults.length, icon: Sparkles },
     { label: "Flagged abnormal", value: abnormal, icon: AlertTriangle },
     { label: "Active reminders", value: activeReminders, icon: ShieldCheck },
@@ -91,7 +93,12 @@ export default function DashboardPage() {
             </Link>
           </div>
           <div className="flex flex-col divide-y" style={{ borderColor: T.border }}>
-            {DOCS.map((d) => (
+            {docs.length === 0 && (
+              <div className="py-5 text-[13px]" style={{ color: T.muted }}>
+                No backend documents yet. Upload a PDF to create your first record.
+              </div>
+            )}
+            {docs.slice(0, 5).map((d) => (
               <Link key={d.id} href={`/reports/${d.id}`} className="flex items-center justify-between py-3.5 first:pt-0 last:pb-0">
                 <div className="flex items-center gap-3">
                   <div className="h-9 w-9 rounded-lg flex items-center justify-center" style={{ background: T.canvasAlt }}>
