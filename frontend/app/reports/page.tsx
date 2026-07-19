@@ -2,9 +2,11 @@ import Link from "next/link";
 import { FlaskConical, Pill } from "lucide-react";
 import { T } from "@/lib/tokens";
 import { TopBar, Card } from "@/components/UI";
-import { DOCS } from "@/lib/mock-data";
+import { getMedicalDocuments } from "@/lib/api";
 
-export default function ReportsPage() {
+export default async function ReportsPage() {
+  const docs = await getMedicalDocuments();
+
   return (
     <div>
       <TopBar title="My reports" subtitle="Every document you've uploaded, structured and explained" />
@@ -20,7 +22,14 @@ export default function ReportsPage() {
             </tr>
           </thead>
           <tbody>
-            {DOCS.map((d) => (
+            {docs.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-5 py-8 text-center text-[13px]" style={{ color: T.muted }}>
+                  No backend documents found yet. Upload a PDF to analyze it.
+                </td>
+              </tr>
+            )}
+            {docs.map((d) => (
               <tr key={d.id} className="border-t" style={{ borderColor: T.border }}>
                 <td className="px-5 py-3.5">
                   <div className="flex items-center gap-2.5">

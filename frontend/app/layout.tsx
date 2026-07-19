@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import {
-  Space_Grotesk,
-  IBM_Plex_Sans,
+  Inter,
   IBM_Plex_Mono,
 } from "next/font/google";
 
@@ -10,15 +9,15 @@ import { T } from "@/lib/tokens";
 
 import "./globals.css";
 
-const display = Space_Grotesk({
+const display = Inter({
   subsets: ["latin"],
-  weight: ["500", "600", "700"],
+  weight: ["500", "600", "700", "800"],
   variable: "--font-display",
 });
 
-const body = IBM_Plex_Sans({
+const body = Inter({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-body",
 });
 
@@ -29,7 +28,7 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Meridian — AI Health Companion",
+  title: "Vitalis - AI Health Companion",
   description:
     "Reads your reports, explains them simply, and keeps you on track.",
 };
@@ -51,7 +50,7 @@ export default function RootLayout({
         <div className="flex h-screen">
           <Sidebar />
 
-          <main className="flex-1 overflow-y-auto bg-[#F4F6F2] p-8">
+          <main className="flex-1 overflow-y-auto p-8" style={{ background: T.canvas }}>
             {children}
           </main>
         </div>

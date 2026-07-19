@@ -2,9 +2,17 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { UploadCloud, FileText, X, Loader2, CheckCircle2, ArrowRight } from "lucide-react";
+import {
+  UploadCloud,
+  FileText,
+  X,
+  Loader2,
+  CheckCircle2,
+  ArrowRight,
+} from "lucide-react";
 import { T } from "@/lib/tokens";
-import { PIPELINE_STEPS, DOCS } from "@/lib/mock-data";
+import { PIPELINE_STEPS } from "@/lib/mock-data";
+import { DocumentKind, uploadMedicalDocument } from "@/lib/api";
 
 type Stage = "idle" | "queued" | "processing" | "done";
 
@@ -16,15 +24,22 @@ export default function UploadDropzone() {
   const [stage, setStage] = useState<Stage>("idle");
   const [activeStep, setActiveStep] = useState(-1);
   const [resultDocId, setResultDocId] = useState<string | null>(null);
+  const [documentKind, setDocumentKind] = useState<DocumentKind>("lab_report");
+  const [error, setError] = useState<string | null>(null);
 
   const addFiles = useCallback((incoming: FileList | null) => {
     if (!incoming) return;
+
     const accepted = Array.from(incoming).filter(
-      (f) => f.type === "application/pdf" || f.type.startsWith("image/")
+      (file) =>
+        file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"),
     );
+
     if (accepted.length) {
       setFiles((prev) => [...prev, ...accepted]);
       setStage("queued");
+      setError(null);
+      setResultDocId(null);
     }
   }, []);
 
@@ -32,32 +47,48 @@ export default function UploadDropzone() {
     setFiles((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  const runPipeline = () => {
+  const runPipeline = async () => {
+    if (!files.length) return;
+
     setStage("processing");
     setActiveStep(0);
-    let i = 0;
-    const iv = setInterval(() => {
-      i += 1;
-      if (i >= PIPELINE_STEPS.length) {
-        clearInterval(iv);
-        setStage("done");
-        setActiveStep(PIPELINE_STEPS.length);
-        // In a real integration this id would come back from the API response.
-        // Here we route to a representative parsed example.
-        const looksLikePrescription = files.some((f) => /rx|prescription/i.test(f.name));
-        setResultDocId(looksLikePrescription ? "rx-0067" : "lipid-0098");
-      } else {
+    setError(null);
+
+    try {
+      for (let i = 1; i < Math.min(3, PIPELINE_STEPS.length); i += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 350));
         setActiveStep(i);
       }
-    }, 700);
+
+      const uploads = [];
+      for (const file of files) {
+        setActiveStep(3);
+        uploads.push(await uploadMedicalDocument(file, documentKind));
+      }
+
+      setActiveStep(PIPELINE_STEPS.length);
+      setResultDocId(uploads[uploads.length - 1]?.id || null);
+      setStage("done");
+    } catch (err) {
+      setStage("queued");
+      setActiveStep(-1);
+      setError(err instanceof Error ? err.message : "Upload failed. Please try again.");
+    }
   };
 
   return (
     <div className="flex flex-col gap-5">
       <div
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
         onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          addFiles(e.dataTransfer.files);
+        }}
         onClick={() => inputRef.current?.click()}
         className="rounded-xl p-10 flex flex-col items-center justify-center text-center cursor-pointer transition-colors"
         style={{
@@ -68,23 +99,35 @@ export default function UploadDropzone() {
         <input
           ref={inputRef}
           type="file"
-          accept="application/pdf,image/*"
+          accept="application/pdf"
           multiple
           className="hidden"
           onChange={(e) => addFiles(e.target.files)}
         />
-        <div className="h-14 w-14 rounded-full flex items-center justify-center mb-4" style={{ background: T.primaryTint }}>
+        <div
+          className="h-14 w-14 rounded-full flex items-center justify-center mb-4"
+          style={{ background: T.primaryTint }}
+        >
           <UploadCloud size={24} color={T.primary} />
         </div>
-        <div className="text-[15px] font-semibold" style={{ color: T.ink, fontFamily: "var(--font-display)" }}>
+        <div
+          className="text-[15px] font-semibold"
+          style={{ color: T.ink, fontFamily: "var(--font-display)" }}
+        >
           Drop a lab report or prescription here
         </div>
-        <p className="text-[12.5px] mt-1.5 max-w-sm" style={{ color: T.muted, fontFamily: "var(--font-body)" }}>
-          PDF or photo. Digital and scanned documents are both supported.
+        <p
+          className="text-[12.5px] mt-1.5 max-w-sm"
+          style={{ color: T.muted, fontFamily: "var(--font-body)" }}
+        >
+          PDF documents are sent to the backend parsing pipeline.
         </p>
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            inputRef.current?.click();
+          }}
           className="mt-5 rounded-lg px-5 py-2.5 text-[13px] font-semibold"
           style={{ background: T.primary, color: "#fff", fontFamily: "var(--font-body)" }}
         >
@@ -93,18 +136,32 @@ export default function UploadDropzone() {
       </div>
 
       {files.length > 0 && (
-        <div className="rounded-xl p-4" style={{ background: T.card, border: `1px solid ${T.border}` }}>
+        <div
+          className="rounded-xl p-4"
+          style={{ background: T.card, border: `1px solid ${T.border}` }}
+        >
           <div className="text-[12px] font-semibold mb-3" style={{ color: T.muted }}>
             {files.length} file{files.length > 1 ? "s" : ""} selected
           </div>
           <div className="flex flex-col gap-2">
-            {files.map((f, idx) => (
-              <div key={f.name + idx} className="flex items-center justify-between rounded-lg px-3 py-2.5" style={{ background: T.canvasAlt }}>
+            {files.map((file, idx) => (
+              <div
+                key={file.name + idx}
+                className="flex items-center justify-between rounded-lg px-3 py-2.5"
+                style={{ background: T.canvasAlt }}
+              >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <FileText size={16} color={T.primary} className="shrink-0" />
                   <div className="min-w-0">
-                    <div className="text-[13px] font-medium truncate" style={{ color: T.ink, fontFamily: "var(--font-body)" }}>{f.name}</div>
-                    <div className="text-[11px]" style={{ color: T.muted }}>{(f.size / 1024).toFixed(0)} KB</div>
+                    <div
+                      className="text-[13px] font-medium truncate"
+                      style={{ color: T.ink, fontFamily: "var(--font-body)" }}
+                    >
+                      {file.name}
+                    </div>
+                    <div className="text-[11px]" style={{ color: T.muted }}>
+                      {(file.size / 1024).toFixed(0)} KB
+                    </div>
                   </div>
                 </div>
                 {stage !== "processing" && stage !== "done" && (
@@ -115,6 +172,35 @@ export default function UploadDropzone() {
               </div>
             ))}
           </div>
+
+          <div className="mt-4 flex items-center gap-2 rounded-lg p-1 w-fit" style={{ background: T.canvasAlt }}>
+            {[
+              { key: "lab_report", label: "Lab report" },
+              { key: "prescription", label: "Prescription" },
+            ].map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => setDocumentKind(option.key as DocumentKind)}
+                className="rounded-md px-3.5 py-2 text-[12.5px] font-semibold"
+                style={{
+                  background: documentKind === option.key ? T.card : "transparent",
+                  color: documentKind === option.key ? T.primary : T.muted,
+                }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          {error && (
+            <div
+              className="mt-4 rounded-lg p-3 text-[12.5px]"
+              style={{ background: T.criticalTint, color: T.critical }}
+            >
+              {error}
+            </div>
+          )}
 
           {stage === "queued" && (
             <button
@@ -129,27 +215,53 @@ export default function UploadDropzone() {
       )}
 
       {(stage === "processing" || stage === "done") && (
-        <div className="rounded-xl p-6" style={{ background: T.card, border: `1px solid ${T.border}` }}>
+        <div
+          className="rounded-xl p-6"
+          style={{ background: T.card, border: `1px solid ${T.border}` }}
+        >
           <div className="flex flex-col">
-            {PIPELINE_STEPS.map((s, idx) => {
+            {PIPELINE_STEPS.map((step, idx) => {
               const isDone = idx < activeStep || stage === "done";
               const isActive = idx === activeStep && stage === "processing";
               return (
-                <div key={s.key} className="flex gap-4">
+                <div key={step.key} className="flex gap-4">
                   <div className="flex flex-col items-center">
                     <div
                       className="h-8 w-8 rounded-full flex items-center justify-center shrink-0"
-                      style={{ background: isDone ? T.primary : isActive ? T.primaryTint : T.canvasAlt, border: isActive ? `2px solid ${T.primary}` : "none" }}
+                      style={{
+                        background: isDone
+                          ? T.primary
+                          : isActive
+                            ? T.primaryTint
+                            : T.canvasAlt,
+                        border: isActive ? `2px solid ${T.primary}` : "none",
+                      }}
                     >
-                      {isDone ? <CheckCircle2 size={15} color="#fff" /> : isActive ? <Loader2 size={15} color={T.primary} className="animate-spin" /> : null}
+                      {isDone ? (
+                        <CheckCircle2 size={15} color="#fff" />
+                      ) : isActive ? (
+                        <Loader2 size={15} color={T.primary} className="animate-spin" />
+                      ) : null}
                     </div>
                     {idx < PIPELINE_STEPS.length - 1 && (
-                      <div className="w-px flex-1 my-1" style={{ background: isDone ? T.primary : T.border, minHeight: 24 }} />
+                      <div
+                        className="w-px flex-1 my-1"
+                        style={{
+                          background: isDone ? T.primary : T.border,
+                          minHeight: 24,
+                        }}
+                      />
                     )}
                   </div>
                   <div className="pb-5">
-                    <div className="text-[13.5px] font-medium" style={{ color: isDone || isActive ? T.ink : T.muted, fontFamily: "var(--font-body)" }}>
-                      {s.label}
+                    <div
+                      className="text-[13.5px] font-medium"
+                      style={{
+                        color: isDone || isActive ? T.ink : T.muted,
+                        fontFamily: "var(--font-body)",
+                      }}
+                    >
+                      {step.label}
                     </div>
                   </div>
                 </div>
@@ -158,11 +270,17 @@ export default function UploadDropzone() {
           </div>
 
           {stage === "done" && resultDocId && (
-            <div className="rounded-lg p-4 flex items-center justify-between gap-3 flex-wrap" style={{ background: T.primaryTint }}>
+            <div
+              className="rounded-lg p-4 flex items-center justify-between gap-3 flex-wrap"
+              style={{ background: T.primaryTint }}
+            >
               <div className="flex items-center gap-2.5">
                 <CheckCircle2 size={17} color={T.primary} />
-                <span className="text-[13px] font-medium" style={{ color: T.primaryDeep, fontFamily: "var(--font-body)" }}>
-                  Done — structured, explained, and checked for urgent values.
+                <span
+                  className="text-[13px] font-medium"
+                  style={{ color: T.primaryDeep, fontFamily: "var(--font-body)" }}
+                >
+                  Done - structured, explained, and checked for urgent values.
                 </span>
               </div>
               <button
@@ -175,20 +293,6 @@ export default function UploadDropzone() {
             </div>
           )}
         </div>
-      )}
-
-      {/* Fallback quick-demo path for reviewers without a sample PDF on hand */}
-      {files.length === 0 && (
-        <button
-          onClick={() => {
-            setFiles([new File([""], "lipid_profile_scan.pdf", { type: "application/pdf" })]);
-            setStage("queued");
-          }}
-          className="self-start text-[12.5px] font-medium"
-          style={{ color: T.muted }}
-        >
-          No file handy? Load a sample report instead →
-        </button>
       )}
     </div>
   );

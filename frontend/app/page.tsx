@@ -1,22 +1,25 @@
 import Link from "next/link";
 import {
   FileText, Sparkles, AlertTriangle, ShieldCheck, ChevronRight,
-  FlaskConical, Pill, UploadCloud, AlertOctagon, ListChecks, Droplets, Flame,
+  FlaskConical, Pill, UploadCloud, AlertOctagon, ListChecks, Flame,
+  LogIn, UserRoundCog, MessageCircleHeart,
 } from "lucide-react";
 import { T } from "@/lib/tokens";
 import { TopBar, Card } from "@/components/UI";
 import { ProgressRing } from "@/components/Charts";
-import { DOCS, REMINDERS } from "@/lib/mock-data";
+import { REMINDERS } from "@/lib/mock-data";
+import { getMedicalDocuments } from "@/lib/api";
 import { TODAY_MEALS, HABITS, CALORIE_TARGET, WATER_TARGET } from "@/lib/lifestyle-data";
 
-export default function DashboardPage() {
-  const allResults = DOCS.flatMap((d) => d.results || []);
+export default async function DashboardPage() {
+  const docs = await getMedicalDocuments();
+  const allResults = docs.flatMap((d) => d.results || []);
   const abnormal = allResults.filter((r) => r.status !== "NORMAL").length;
-  const urgentDoc = DOCS.find((d) => d.urgent);
+  const urgentDoc = docs.find((d) => d.urgent);
   const activeReminders = REMINDERS.filter((r) => r.active).length;
 
   const stats = [
-    { label: "Documents processed", value: DOCS.length, icon: FileText },
+    { label: "Documents processed", value: docs.length, icon: FileText },
     { label: "Values extracted", value: allResults.length, icon: Sparkles },
     { label: "Flagged abnormal", value: abnormal, icon: AlertTriangle },
     { label: "Active reminders", value: activeReminders, icon: ShieldCheck },
@@ -25,6 +28,40 @@ export default function DashboardPage() {
   return (
     <div>
       <TopBar title="Good to see you" subtitle="Here's where things stand across your recent reports" />
+
+      <Card className="p-5 mb-6">
+        <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+          <div>
+            <h2 className="text-[15px] font-semibold" style={{ color: T.ink, fontFamily: "var(--font-display)" }}>
+              Start with the real Vitalis flow
+            </h2>
+            <p className="text-[12.5px] mt-1" style={{ color: T.muted }}>
+              Login, add health context, upload reports, then ask Vitalis for simple explanations and routine suggestions.
+            </p>
+          </div>
+          <Link href="/chat" className="rounded-lg px-3.5 py-2.5 text-[12.5px] font-semibold flex items-center gap-2" style={{ background: T.primary, color: "#fff" }}>
+            <MessageCircleHeart size={15} /> Ask AI
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          {[
+            { href: "/login", label: "User login", icon: LogIn },
+            { href: "/profile", label: "Health details", icon: UserRoundCog },
+            { href: "/upload", label: "Reports upload", icon: UploadCloud },
+            { href: "/chat", label: "AI suggestions", icon: MessageCircleHeart },
+          ].map((step, index) => (
+            <Link key={step.href} href={step.href} className="rounded-lg p-3 flex items-center gap-3" style={{ background: T.canvasAlt }}>
+              <div className="h-8 w-8 rounded-md flex items-center justify-center" style={{ background: T.card }}>
+                <step.icon size={15} color={T.primary} />
+              </div>
+              <div>
+                <div className="text-[11px] font-semibold" style={{ color: T.muted }}>STEP {index + 1}</div>
+                <div className="text-[13px] font-semibold" style={{ color: T.ink }}>{step.label}</div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </Card>
 
       {urgentDoc?.urgent && (
         <Link
@@ -91,7 +128,12 @@ export default function DashboardPage() {
             </Link>
           </div>
           <div className="flex flex-col divide-y" style={{ borderColor: T.border }}>
-            {DOCS.map((d) => (
+            {docs.length === 0 && (
+              <div className="py-5 text-[13px]" style={{ color: T.muted }}>
+                No backend documents yet. Upload a PDF to create your first record.
+              </div>
+            )}
+            {docs.slice(0, 5).map((d) => (
               <Link key={d.id} href={`/reports/${d.id}`} className="flex items-center justify-between py-3.5 first:pt-0 last:pb-0">
                 <div className="flex items-center gap-3">
                   <div className="h-9 w-9 rounded-lg flex items-center justify-center" style={{ background: T.canvasAlt }}>
@@ -126,6 +168,10 @@ export default function DashboardPage() {
             <Link href="/reminders" className="flex items-center gap-2.5 rounded-lg px-3.5 py-3" style={{ background: T.canvasAlt }}>
               <ShieldCheck size={16} color={T.inkSoft} />
               <span className="text-[13px] font-medium" style={{ color: T.inkSoft }}>Manage reminders</span>
+            </Link>
+            <Link href="/chat" className="flex items-center gap-2.5 rounded-lg px-3.5 py-3" style={{ background: T.canvasAlt }}>
+              <MessageCircleHeart size={16} color={T.inkSoft} />
+              <span className="text-[13px] font-medium" style={{ color: T.inkSoft }}>Ask Vitalis</span>
             </Link>
           </div>
         </Card>
