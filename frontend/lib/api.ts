@@ -106,7 +106,8 @@ type UploadResponse =
   | { message: string; report: BackendReportRead }
   | { message: string; prescription: BackendPrescriptionRead };
 
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 if (!API_BASE_URL) {
   throw new Error(
@@ -115,7 +116,7 @@ if (!API_BASE_URL) {
 }
 
 export function getApiBaseUrl() {
-  return API_BASE_URL.replace(/\/$/, "");
+  return API_BASE_URL!.replace(/\/$/, "");
 }
 
 async function apiFetch<T>(path: string): Promise<T | null> {
