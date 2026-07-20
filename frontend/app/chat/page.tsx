@@ -6,6 +6,8 @@ import { Bot, Send, Sparkles, UserRound } from "lucide-react";
 import { TopBar, Card } from "@/components/UI";
 import { T } from "@/lib/tokens";
 import { askHealthChat, HealthChatMessage, HealthProfile } from "@/lib/api";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const STARTER_PROMPTS = [
   "Based on my routine, what should I improve first?",
@@ -81,7 +83,11 @@ export default function ChatPage() {
                     {message.role === "user" ? <UserRound size={12} /> : <Bot size={12} />}
                     {message.role === "user" ? "YOU" : "Vitalis"}
                   </div>
-                  {message.content}
+                  <div className="prose prose-sm max-w-none dark:prose-invert">
+  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+    {message.content}
+  </ReactMarkdown>
+</div>
                 </div>
               </div>
             ))}

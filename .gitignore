@@ -5,3 +5,4 @@ __pycache__/
 .vscode/
 *:Zone.Identifier
 .env.local
+node_modules/
